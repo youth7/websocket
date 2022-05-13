@@ -7,7 +7,7 @@ pub enum TypeOfPayloadLength {
     EightByte,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum OperationCode {
     Continue,
     Text,
@@ -33,17 +33,17 @@ impl WebSocketHeader {
         let mask_start: usize;
         match payload_length {
             0..=125 => {
-                println!("header长度类型为1");
+                // println!("header长度类型为1");
                 mask_start = 2;
             }
             126 => {
-                println!("header长度类型为2");
+                // println!("header长度类型为2");
                 mask_start = 2 + 2;
                 stream.read_exact(&mut buf[2..4]).unwrap(); //读取真实长度
                 payload_length = u16::from_be_bytes(buf[2..mask_start].try_into().unwrap()) as u64;
             }
             127 => {
-                println!("header长度类型为3");
+                // println!("header长度类型为3");
                 mask_start = 2 + 8;
                 stream.read_exact(&mut buf[2..10]).unwrap(); //读取真实长度
                 payload_length = u64::from_be_bytes(buf[2..mask_start].try_into().unwrap()) as u64;
@@ -92,7 +92,7 @@ impl WebSocketHeader {
         };
         
         let header = WebSocketHeader { payload_length,  bytes, mask: 0 };
-        header.display();
+        // header.display();
         header
     }
 

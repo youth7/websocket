@@ -1,7 +1,7 @@
 use std::{net::TcpStream, io::Write};
 use super::WebSocketHeader;
 
-pub fn write_ws_message(header:&WebSocketHeader, payload: Vec<u8>, stream: &mut TcpStream) {
+pub fn write_ws_message(header:&WebSocketHeader, payload: &Vec<u8>, stream: &mut TcpStream) {
     stream.write(&header.bytes).unwrap();
     // match length {
     //     0..=125 => {

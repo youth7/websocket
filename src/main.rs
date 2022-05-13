@@ -1,5 +1,6 @@
 use base64;
 use sha1_smol;
+use tungstenite::{protocol::frame::coding::OpCode, http::header};
 use std::{
     io::Write,
     net::{TcpListener, TcpStream},
@@ -13,6 +14,8 @@ mod ws_writer;
 use http_header_parser::get_sec_key;
 
 use ws_header_parser::{OperationCode, WebSocketHeader};
+
+use crate::ws_reader::read_payload;
 
 pub fn main() {
     let listener = TcpListener::bind("127.0.0.1:3333").expect("绑定失败");
@@ -38,26 +41,78 @@ fn handle_connection(mut stream: TcpStream) {
     });
 }
 
+// struct ContinuePacket{
+//     bytes : Vec<u8>,
+//     op_code : u8
+// }
+
 fn echo(stream: &mut TcpStream) {
-    loop {
+    let mut receiving_continue_frame = false;
+    let mut op_code_of_continue: OperationCode = OperationCode::Text;
+    let mut whole_playload: Vec<u8> = Vec::new();
+    let mut end = false;
+    while !end {
         let header = ws_reader::read_header(stream);
         let op_code = header.get_opcode();
-        match header.get_opcode() {
+        let fin = header.get_fin();
+        if fin == 1 {
+            // 非分片帧分为两种情况：1，纯粹的非分片帧；2，夹杂在分片帧中控制帧如close和ping/pong
+            if !receiving_continue_frame {
+                handle_non_continue_frame(stream, header, &mut end); // 情况1
+                break;
+            }
+            match op_code {
+                //分片帧中的末帧
+                OperationCode::Continue => {
+                    println!("接收到分片帧的最后一帧");
+                    receiving_continue_frame = false;
+                    let mut fragment = read_payload(stream, &header);
+                    whole_playload.append(&mut fragment);
+                    let header = WebSocketHeader::new(true, op_code_of_continue.clone(), whole_playload.len() as u64);
+                    ws_writer::write_ws_message(&header, &whole_playload, stream);
+                }
+                OperationCode::NonContorlPreserve(_) | OperationCode::PreserveControl(_) =>{
+                    panic!("暂不支持在分片帧中夹杂其它控制帧");
+                }
+                _ => {
+                    panic!("不可能的情况{:?}", op_code);
+                }
+            }
+        } else {
+            // 分片帧的类型由首帧决定
+            if !receiving_continue_frame {
+                println!("接收到分片帧的第1帧");
+                receiving_continue_frame = true;
+                whole_playload = Vec::new();
+                op_code_of_continue = op_code;
+            }else{
+                println!("接收到分片帧的中间帧");
+            }
+            let mut fragment = read_payload(stream, &header);
+            whole_playload.append(&mut fragment);
+        }
+    }
+    close_websocket(stream);
+
+    fn handle_non_continue_frame(stream: &mut TcpStream, header: WebSocketHeader, end: &mut bool) {
+        let op_code = header.get_opcode();
+        match op_code {
             OperationCode::Text => {
                 let payload = ws_reader::read_payload(stream, &header);
                 let header = WebSocketHeader::new(true, op_code, payload.len() as u64);
-                ws_writer::write_ws_message(&header, payload, stream);
+                ws_writer::write_ws_message(&header, &payload, stream);
             }
             OperationCode::Close => {
                 ws_reader::read_payload(stream, &header);
                 close_websocket(stream);
-                break;
+                *end = true;
             }
             _ => {
+                println!("暂不能支持的帧{:?}", op_code);
                 close_websocket(stream);
-                break;
+                *end = true;
             }
-        }
+        };
     }
 }
 
@@ -68,6 +123,8 @@ fn close_websocket(stream: &mut TcpStream) {
     stream.write(&header.bytes).unwrap();
     stream.write(&close_code.to_be_bytes()).unwrap();
     stream.write(reason).unwrap();
+    stream.flush().unwrap();
+    println!("发送关闭帧完成..........");
 }
 
 fn upgrade_protocol(stream: &mut TcpStream, client_key: String) {
@@ -83,7 +140,7 @@ fn upgrade_protocol(stream: &mut TcpStream, client_key: String) {
         "\r\n",
     ];
     let response = headers.join("\r\n");
-    println!("响应的消息是\n{}", response);
+    println!("响应的握手是\n{}", response);
     stream.write(response.as_bytes()).unwrap();
 }
 

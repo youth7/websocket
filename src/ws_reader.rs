@@ -14,6 +14,7 @@ use super::WebSocketHeader;
 
 pub fn read_header(stream: &mut TcpStream) -> WebSocketHeader {
     let ws_header = WebSocketHeader::create_from_stream(stream);
+    print!("client发送的header信息是：");
     ws_header.display();
     ws_header
 }
