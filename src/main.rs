@@ -18,7 +18,7 @@ use ws_header_parser::{OperationCode, WebSocketHeader};
 use crate::ws_reader::read_payload;
 
 pub fn main() {
-    let listener = TcpListener::bind("127.0.0.1:3333").expect("绑定失败");
+    let listener = TcpListener::bind("0.0.0.0:3333").expect("绑定失败");
     println!("服务启动，监听端口3333");
     loop {
         let (stream, _) = listener.accept().expect("获取流信息失败");
