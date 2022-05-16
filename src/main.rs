@@ -59,7 +59,7 @@ fn echo(stream: &mut TcpStream) {
             // 非分片帧分为两种情况：1，纯粹的非分片帧；2，夹杂在分片帧中控制帧如close和ping/pong
             if !receiving_continue_frame {
                 handle_non_continue_frame(stream, header, &mut end); // 情况1
-                break;
+                continue;
             }
             match op_code {
                 //分片帧中的末帧
