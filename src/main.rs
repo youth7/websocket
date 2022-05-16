@@ -107,6 +107,13 @@ fn echo(stream: &mut TcpStream) {
                 close_websocket(stream);
                 *end = true;
             }
+            OperationCode::Ping =>{
+                ws_reader::read_payload(stream, &header);
+                let payload = Vec::from("卧槽，pong还能带数据？".as_bytes());
+                let header = WebSocketHeader::new(true, OperationCode::Pong, payload.len() as u64);
+                ws_writer::write_ws_message(&header, &payload, stream);
+            }
+
             _ => {
                 println!("暂不能支持的帧{:?}", op_code);
                 close_websocket(stream);
