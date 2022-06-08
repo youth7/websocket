@@ -71,11 +71,13 @@ fn echo(stream: &mut TcpStream) {
                     let header = WebSocketHeader::new(true, op_code_of_continue.clone(), whole_playload.len() as u64);
                     ws_writer::write_ws_message(&header, &whole_playload, stream);
                 }
-                OperationCode::NonContorlPreserve(_) | OperationCode::PreserveControl(_) =>{
-                    panic!("暂不支持在分片帧中夹杂其它控制帧");
+                OperationCode::Ping =>{
+                    pong(stream, header);
+                    println!("接收到夹杂在分片帧中的Ping帧");
+
                 }
                 _ => {
-                    panic!("不可能的情况{:?}", op_code);
+                    panic!("暂不支持的情况{:?}", op_code);
                 }
             }
         } else {
@@ -108,10 +110,7 @@ fn echo(stream: &mut TcpStream) {
                 *end = true;
             }
             OperationCode::Ping =>{
-                ws_reader::read_payload(stream, &header);
-                let payload = Vec::from("卧槽，pong还能带数据？".as_bytes());
-                let header = WebSocketHeader::new(true, OperationCode::Pong, payload.len() as u64);
-                ws_writer::write_ws_message(&header, &payload, stream);
+                pong(stream, header);
             }
 
             _ => {
@@ -120,6 +119,13 @@ fn echo(stream: &mut TcpStream) {
                 *end = true;
             }
         };
+    }
+
+    fn pong(stream: &mut TcpStream, header: WebSocketHeader){
+        ws_reader::read_payload(stream, &header);
+        let payload = Vec::from("卧槽，pong还能带数据？".as_bytes());
+        let header = WebSocketHeader::new(true, OperationCode::Pong, payload.len() as u64);
+        ws_writer::write_ws_message(&header, &payload, stream);
     }
 }
 

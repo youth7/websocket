@@ -106,7 +106,7 @@ impl WebSocketHeader {
             0..=125 => TypeOfPayloadLength::OneByte,
             126 => TypeOfPayloadLength::TwoByte,
             127 => TypeOfPayloadLength::EightByte,
-            _ => panic!("不可能的情况{}", length),
+            _ => panic!("不可能的长度：{}", length),
         }
     }
 

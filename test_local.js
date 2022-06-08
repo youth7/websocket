@@ -13,7 +13,7 @@
     ws.send("33", {fin:false});
     ws.send("44", {fin:true});
     ws.ping("卧槽，ping也能带数据？？？");
-    // ws.close();
+    ws.close();
   });
 
   ws.on('message', function message(data) {
